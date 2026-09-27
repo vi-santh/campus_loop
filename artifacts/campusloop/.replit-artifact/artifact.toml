@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CampusLoop"
+description = "A campus-only resource exchange where students and organizations can list, discover, request, and complete reuse of useful materials."
+version = "1.0.0"
+id = "artifacts/campusloop"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21118
+
+[services.development]
+run = "pnpm --filter @workspace/campusloop run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/campusloop", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/campusloop/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21118"
+BASE_PATH = "/"

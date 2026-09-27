@@ -3,20 +3,33 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CampusLoop college resource exchange API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: listings
+    description: Marketplace listings
+  - name: requests
+    description: Listing requests and exchange workflow
+  - name: notifications
+    description: In-app notifications
+  - name: dashboard
+    description: Personal dashboard data
+  - name: admin
+    description: Administrative operations
+  - name: impact
+    description: Reuse impact metrics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +37,723 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a campus account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in to CampusLoop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      summary: Get the current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [listings]
+      summary: List active marketplace categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+  /listings:
+    get:
+      operationId: listListings
+      tags: [listings]
+      summary: Browse and filter marketplace listings
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/Condition"
+        - $ref: "#/components/parameters/ListingType"
+        - $ref: "#/components/parameters/Available"
+        - $ref: "#/components/parameters/Department"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Paginated listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingPage"
+    post:
+      operationId: createListing
+      tags: [listings]
+      security: [{ bearerAuth: [] }]
+      summary: Create a listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingInput"
+      responses:
+        "201":
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get a listing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Listing details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateListing
+      tags: [listings]
+      security: [{ bearerAuth: [] }]
+      summary: Update an owned listing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingUpdate"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteListing
+      tags: [listings]
+      security: [{ bearerAuth: [] }]
+      summary: Remove an owned listing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Listing removed
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /requests:
+    get:
+      operationId: listRequests
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: List requests made by or received by the current user
+      parameters:
+        - name: view
+          in: query
+          schema:
+            type: string
+            enum: [all, incoming, outgoing]
+            default: all
+      responses:
+        "200":
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItemRequest"
+    post:
+      operationId: createRequest
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: Request an available listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestInput"
+      responses:
+        "201":
+          description: Created request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Request conflicts with current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /requests/{id}/accept:
+    patch:
+      operationId: acceptRequest
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: Accept an incoming request
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Accepted request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /requests/{id}/reject:
+    patch:
+      operationId: rejectRequest
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: Reject an incoming request
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Rejected request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRequest"
+  /requests/{id}/cancel:
+    patch:
+      operationId: cancelRequest
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: Cancel a pending request
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cancelled request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRequest"
+  /requests/{id}/complete:
+    patch:
+      operationId: completeRequest
+      tags: [requests]
+      security: [{ bearerAuth: [] }]
+      summary: Mark an accepted exchange complete
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Completed request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemRequest"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      security: [{ bearerAuth: [] }]
+      summary: List current user notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Mark a notification as read
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      security: [{ bearerAuth: [] }]
+      summary: Mark all notifications as read
+      responses:
+        "204":
+          description: Notifications marked read
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      security: [{ bearerAuth: [] }]
+      summary: Get current user dashboard
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /impact:
+    get:
+      operationId: getImpact
+      tags: [impact]
+      summary: Get factual reuse metrics
+      responses:
+        "200":
+          description: Impact metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Impact"
+  /admin/statistics:
+    get:
+      operationId: getAdminStatistics
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      summary: Get admin platform statistics
+      responses:
+        "200":
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatistics"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      summary: List users for administration
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+  /admin/users/{id}/disable:
+    patch:
+      operationId: disableUser
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      summary: Disable a user account
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: User disabled
+  /admin/listings:
+    get:
+      operationId: listAdminListings
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      summary: List all listings for administration
+      responses:
+        "200":
+          description: Listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+  /admin/listings/{id}/remove:
+    patch:
+      operationId: removeAdminListing
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      summary: Remove a listing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Listing removed
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+    Category:
+      name: category
+      in: query
+      schema:
+        type: string
+    Condition:
+      name: condition
+      in: query
+      schema:
+        $ref: "#/components/schemas/Condition"
+    ListingType:
+      name: listingType
+      in: query
+      schema:
+        $ref: "#/components/schemas/ListingType"
+    Available:
+      name: available
+      in: query
+      schema:
+        type: boolean
+    Department:
+      name: department
+      in: query
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 48
+        default: 12
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [newest, oldest, updated]
+        default: newest
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    User:
+      type: object
+      required: [id, fullName, email, role, department, college, status, createdAt]
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [STUDENT, ORGANIZATION, ADMIN] }
+        department: { type: string }
+        college: { type: string }
+        profileImageUrl: { type: ["string", "null"] }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+        createdAt: { type: string, format: date-time }
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+    RegisterInput:
+      type: object
+      required: [fullName, email, password, role, department, college]
+      properties:
+        fullName: { type: string, minLength: 2 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        role: { type: string, enum: [STUDENT, ORGANIZATION] }
+        department: { type: string, minLength: 2 }
+        college: { type: string, minLength: 2 }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+    Category:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    Listing:
+      type: object
       required:
-        - status
+        [id, title, description, category, condition, quantity, availableQuantity, location, owner, imageUrl, tags, department, listingType, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        category: { $ref: "#/components/schemas/Category" }
+        condition: { $ref: "#/components/schemas/Condition" }
+        quantity: { type: integer }
+        availableQuantity: { type: integer }
+        location: { type: string }
+        owner: { $ref: "#/components/schemas/ListingOwner" }
+        imageUrl: { type: ["string", "null"] }
+        tags:
+          type: array
+          items: { type: string }
+        department: { type: string }
+        listingType: { $ref: "#/components/schemas/ListingType" }
+        status: { type: string, enum: [AVAILABLE, UNAVAILABLE, REMOVED, EXPIRED] }
+        expiryDate: { type: ["string", "null"], format: date }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ListingOwner:
+      type: object
+      required: [id, fullName, role, department]
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        role: { type: string, enum: [STUDENT, ORGANIZATION, ADMIN] }
+        department: { type: string }
+    ListingInput:
+      type: object
+      required: [title, description, categoryId, condition, quantity, location, listingType]
+      properties:
+        title: { type: string, minLength: 3 }
+        description: { type: string, minLength: 10 }
+        categoryId: { type: integer, minimum: 1 }
+        condition: { $ref: "#/components/schemas/Condition" }
+        quantity: { type: integer, minimum: 1 }
+        location: { type: string, minLength: 2 }
+        listingType: { $ref: "#/components/schemas/ListingType" }
+        imageUrl: { type: ["string", "null"] }
+        tags:
+          type: array
+          items: { type: string }
+        department: { type: string }
+        expiryDate: { type: ["string", "null"], format: date }
+    ListingUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 3 }
+        description: { type: string, minLength: 10 }
+        categoryId: { type: integer, minimum: 1 }
+        condition: { $ref: "#/components/schemas/Condition" }
+        quantity: { type: integer, minimum: 1 }
+        location: { type: string, minLength: 2 }
+        listingType: { $ref: "#/components/schemas/ListingType" }
+        imageUrl: { type: ["string", "null"] }
+        tags:
+          type: array
+          items: { type: string }
+        department: { type: string }
+        expiryDate: { type: ["string", "null"], format: date }
+    ListingPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: "#/components/schemas/Listing" }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+        totalPages: { type: integer }
+    RequestInput:
+      type: object
+      required: [listingId, message]
+      properties:
+        listingId: { type: integer, minimum: 1 }
+        message: { type: string, minLength: 10, maxLength: 1000 }
+    ItemRequest:
+      type: object
+      required: [id, listing, requester, owner, message, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        listing: { $ref: "#/components/schemas/ListingSummary" }
+        requester: { $ref: "#/components/schemas/ListingOwner" }
+        owner: { $ref: "#/components/schemas/ListingOwner" }
+        message: { type: string }
+        status: { type: string, enum: [PENDING, ACCEPTED, REJECTED, CANCELLED, COMPLETED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ListingSummary:
+      type: object
+      required: [id, title, imageUrl, listingType]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        imageUrl: { type: ["string", "null"] }
+        listingType: { $ref: "#/components/schemas/ListingType" }
+    Notification:
+      type: object
+      required: [id, title, message, type, read, createdAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        message: { type: string }
+        type: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Dashboard:
+      type: object
+      required: [itemsListed, requestsMade, itemsReused, activeListings, pendingRequests, incomingRequests, myListings, myRequests, incoming]
+      properties:
+        itemsListed: { type: integer }
+        requestsMade: { type: integer }
+        itemsReused: { type: integer }
+        activeListings: { type: integer }
+        pendingRequests: { type: integer }
+        incomingRequests: { type: integer }
+        myListings:
+          type: array
+          items: { $ref: "#/components/schemas/Listing" }
+        myRequests:
+          type: array
+          items: { $ref: "#/components/schemas/ItemRequest" }
+        incoming:
+          type: array
+          items: { $ref: "#/components/schemas/ItemRequest" }
+    Impact:
+      type: object
+      required: [itemsReused, completedExchanges, donations, exchanges]
+      properties:
+        itemsReused: { type: integer }
+        completedExchanges: { type: integer }
+        donations: { type: integer }
+        exchanges: { type: integer }
+    AdminStatistics:
+      type: object
+      required: [totalUsers, totalListings, availableItems, pendingRequests, completedExchanges, totalCategories]
+      properties:
+        totalUsers: { type: integer }
+        totalListings: { type: integer }
+        availableItems: { type: integer }
+        pendingRequests: { type: integer }
+        completedExchanges: { type: integer }
+        totalCategories: { type: integer }
+    Condition:
+      type: string
+      enum: [NEW, LIKE_NEW, GOOD, USED, NEEDS_REPAIR]
+    ListingType:
+      type: string
+      enum: [DONATE, EXCHANGE]
 
