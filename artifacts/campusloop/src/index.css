@@ -88,11 +88,11 @@
   --sidebar: 215 32% 18%;
   --sidebar-foreground: 210 33% 99%;
   --sidebar-border: 214 26% 29%;
-  --sidebar-primary: 211 35% 77%;
+  --sidebar-primary: 22 53% 62%;
   --sidebar-primary-foreground: 215 32% 18%;
   --sidebar-accent: 214 26% 29%;
   --sidebar-accent-foreground: 210 33% 99%;
-  --sidebar-ring: 211 35% 77%;
+  --sidebar-ring: 22 53% 62%;
   --popover: 210 33% 99%;
   --popover-foreground: 215 32% 18%;
   --popover-border: 214 24% 84%;
@@ -102,14 +102,14 @@
   --secondary-foreground: 215 32% 18%;
   --muted: 212 25% 91%;
   --muted-foreground: 211 17% 43%;
-  --accent: 211 35% 77%;
+  --accent: 22 53% 54%;
   --accent-foreground: 215 32% 18%;
   --destructive: 350 44% 49%;
   --destructive-foreground: 210 33% 99%;
   --input: 214 24% 78%;
   --ring: 215 37% 29%;
   --chart-1: 215 37% 29%;
-  --chart-2: 211 35% 77%;
+  --chart-2: 22 53% 54%;
   --chart-3: 205 41% 61%;
   --chart-4: 191 35% 53%;
   --chart-5: 165 25% 48%;
@@ -209,11 +209,11 @@
   --sidebar: 215 32% 9%;
   --sidebar-foreground: 210 33% 99%;
   --sidebar-border: 214 26% 22%;
-  --sidebar-primary: 211 35% 77%;
+  --sidebar-primary: 22 53% 62%;
   --sidebar-primary-foreground: 215 32% 18%;
   --sidebar-accent: 214 26% 20%;
   --sidebar-accent-foreground: 210 33% 99%;
-  --sidebar-ring: 211 35% 77%;
+  --sidebar-ring: 22 53% 62%;
   --popover: 214 24% 15%;
   --popover-foreground: 210 33% 99%;
   --popover-border: 214 26% 25%;
@@ -223,13 +223,13 @@
   --secondary-foreground: 210 33% 99%;
   --muted: 214 26% 20%;
   --muted-foreground: 211 17% 70%;
-  --accent: 215 37% 44%;
-  --accent-foreground: 210 33% 99%;
+  --accent: 22 53% 62%;
+  --accent-foreground: 215 32% 18%;
   --destructive: 350 44% 58%;
   --destructive-foreground: 210 33% 99%;
   --input: 214 26% 30%;
-  --ring: 211 35% 77%;
-  --chart-1: 211 35% 77%;
+  --ring: 22 53% 62%;
+  --chart-1: 22 53% 62%;
   --chart-2: 215 37% 44%;
   --chart-3: 205 41% 61%;
   --chart-4: 191 35% 53%;
@@ -393,7 +393,7 @@ button, a, input, select, textarea { transition: color .2s ease, background-colo
 
 /* CampusLoop palette bridge: the app uses Tailwind arbitrary utilities in JSX.
  * Keeping the remap in the Tailwind utilities layer gives the whole product a
- * single dusky-blue visual language without scattering a second stylesheet. */
+ * dusky-blue and dusky-orange visual language without scattering a second stylesheet. */
 @layer utilities {
   [class*="bg-[#20443d]"],
   [class*="bg-[#2d5e54]"],
@@ -416,7 +416,7 @@ button, a, input, select, textarea { transition: color .2s ease, background-colo
   [class*="bg-[#f1df83]"],
   [class*="bg-[#ae7620]"],
   [class*="bg-[#bb801d]"] {
-    background-color: #c4d5e5 !important;
+    background-color: #c98259 !important;
   }
 
   [class*="bg-[#e9eee6]"],
@@ -434,7 +434,7 @@ button, a, input, select, textarea { transition: color .2s ease, background-colo
   [class*="bg-[#f7efd9]"],
   [class*="bg-[#f6edc9]"],
   [class*="bg-[#f0eee5]"] {
-    background-color: #e4edf5 !important;
+    background-color: #f3e0d3 !important;
   }
 
   [class*="bg-[#f6ded7]"],
@@ -463,13 +463,13 @@ button, a, input, select, textarea { transition: color .2s ease, background-colo
 
   [class*="text-[#e8d26e]"],
   [class*="text-[#f5db72]"] {
-    color: #c4d5e5 !important;
+    color: #e3a171 !important;
   }
 
   [class*="text-[#ae7620]"],
   [class*="text-[#bb801d]"],
   [class*="text-[#8a6518]"] {
-    color: #6c86a2 !important;
+    color: #a9603d !important;
   }
 
   [class*="text-[#789c78]"],
