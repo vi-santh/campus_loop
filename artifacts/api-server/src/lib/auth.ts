@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 type AuthenticatedRequest = Request & { userId?: number };
 
 const secret = process.env.SESSION_SECRET ?? process.env.JWT_SECRET ?? "campusloop-local-development-secret";
+const tokenLifetimeSeconds = 60 * 60 * 24 * 7;
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -22,7 +23,8 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 export function createToken(user: Pick<User, "id" | "role">): string {
-  const payload = Buffer.from(JSON.stringify({ sub: user.id, role: user.role })).toString("base64url");
+  const exp = Math.floor(Date.now() / 1000) + tokenLifetimeSeconds;
+  const payload = Buffer.from(JSON.stringify({ sub: user.id, role: user.role, exp })).toString("base64url");
   const signature = createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -35,8 +37,9 @@ function readToken(token: string): number | null {
   const expectedBuffer = Buffer.from(expected);
   if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: number };
-    return typeof parsed.sub === "number" ? parsed.sub : null;
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: number; exp?: number };
+    if (typeof parsed.sub !== "number" || typeof parsed.exp !== "number" || parsed.exp <= Math.floor(Date.now() / 1000)) return null;
+    return parsed.sub;
   } catch {
     return null;
   }

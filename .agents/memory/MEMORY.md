@@ -1,0 +1,1 @@
+- [CampusLoop product rules](campusloop-product-rules.md) — availability is reserved on acceptance and impact counts recorded reuse transactions only.

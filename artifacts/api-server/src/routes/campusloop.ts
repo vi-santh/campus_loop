@@ -120,6 +120,8 @@ function error(res: any, status: number, message: string) {
   res.status(status).json({ error: message });
 }
 
+class StateConflict extends Error {}
+
 async function adminOnly(req: Request, res: any): Promise<boolean> {
   const current = await getUserFromRequest(req);
   if (!current || current.role !== "ADMIN") {
@@ -133,6 +135,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     error(res, 400, "Please check your registration details.");
+    return;
+  }
+  const requiredDomain = process.env.COLLEGE_EMAIL_DOMAIN?.trim().toLowerCase().replace(/^@/, "");
+  if (process.env.ENFORCE_COLLEGE_DOMAIN === "true" && requiredDomain && !parsed.data.email.toLowerCase().endsWith(`@${requiredDomain}`)) {
+    error(res, 400, `Please use your ${requiredDomain} campus email address.`);
     return;
   }
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email.toLowerCase())).limit(1);
@@ -291,9 +298,20 @@ router.patch("/listings/:id", requireAuth, async (req, res): Promise<void> => {
     error(res, 403, "Only the listing owner can edit this item.");
     return;
   }
-  const updates: Record<string, unknown> = { ...parsed.data, updatedAt: new Date() };
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (parsed.data.title !== undefined) updates.title = parsed.data.title;
+  if (parsed.data.description !== undefined) updates.description = parsed.data.description;
+  if (parsed.data.categoryId !== undefined) updates.categoryId = parsed.data.categoryId;
+  if (parsed.data.condition !== undefined) updates.condition = parsed.data.condition;
+  if (parsed.data.location !== undefined) updates.location = parsed.data.location;
+  if (parsed.data.listingType !== undefined) updates.listingType = parsed.data.listingType;
+  if (parsed.data.imageUrl !== undefined) updates.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.tags !== undefined) updates.tags = parsed.data.tags;
+  if (parsed.data.department !== undefined) updates.department = parsed.data.department;
+  if (parsed.data.expiryDate !== undefined) updates.expiryDate = parsed.data.expiryDate ? parsed.data.expiryDate.toISOString().slice(0, 10) : null;
   if (parsed.data.quantity !== undefined) {
     updates.availableQuantity = Math.max(0, existing.availableQuantity + parsed.data.quantity - existing.quantity);
+    updates.quantity = parsed.data.quantity;
   }
   await db.update(listingsTable).set(updates as any).where(eq(listingsTable.id, params.data.id));
   const listing = await listingView(params.data.id);
@@ -323,8 +341,12 @@ router.delete("/listings/:id", requireAuth, async (req, res): Promise<void> => {
 router.get("/requests", requireAuth, async (req, res): Promise<void> => {
   const parsed = ListRequestsQueryParams.safeParse(req.query);
   const current = await getUserFromRequest(req);
-  if (!parsed.success || !current) {
+  if (!current) {
     error(res, 401, "Please sign in to view requests.");
+    return;
+  }
+  if (!parsed.success) {
+    error(res, 400, "Invalid request view.");
     return;
   }
   const filters = parsed.data.view === "incoming" ? eq(requestsTable.ownerId, current.id) : parsed.data.view === "outgoing" ? eq(requestsTable.requesterId, current.id) : or(eq(requestsTable.ownerId, current.id), eq(requestsTable.requesterId, current.id));
@@ -336,7 +358,11 @@ router.get("/requests", requireAuth, async (req, res): Promise<void> => {
 router.post("/requests", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateRequestBody.safeParse(req.body);
   const current = await getUserFromRequest(req);
-  if (!parsed.success || !current) {
+  if (!current) {
+    error(res, 401, "Please sign in to continue.");
+    return;
+  }
+  if (!parsed.success) {
     error(res, 400, "Please add a message before requesting this item.");
     return;
   }
@@ -389,12 +415,21 @@ async function transitionRequest(req: Request, res: any, action: "accept" | "rej
       error(res, 409, "This request can no longer be accepted.");
       return;
     }
-    await db.transaction(async (tx) => {
-      const updated = await tx.update(listingsTable).set({ availableQuantity: sql`${listingsTable.availableQuantity} - 1`, status: sql`CASE WHEN ${listingsTable.availableQuantity} <= 1 THEN 'UNAVAILABLE' ELSE 'AVAILABLE' END`, updatedAt: new Date() }).where(and(eq(listingsTable.id, listing.id), gtAvailable())).returning();
-      if (!updated[0]) throw new Error("Listing is no longer available");
-      await tx.update(requestsTable).set({ status: "ACCEPTED", updatedAt: new Date() }).where(eq(requestsTable.id, id));
-      await tx.insert(notificationsTable).values({ userId: request.requesterId, title: "Your request was accepted", message: `Your request for ${listing.title} was accepted.`, type: "REQUEST_ACCEPTED" });
-    });
+    try {
+      await db.transaction(async (tx) => {
+        const accepted = await tx.update(requestsTable).set({ status: "ACCEPTED", updatedAt: new Date() }).where(and(eq(requestsTable.id, id), eq(requestsTable.ownerId, current.id), eq(requestsTable.status, "PENDING"))).returning();
+        if (!accepted[0]) throw new StateConflict();
+        const updated = await tx.update(listingsTable).set({ availableQuantity: sql`${listingsTable.availableQuantity} - 1`, status: sql`CASE WHEN ${listingsTable.availableQuantity} <= 1 THEN 'UNAVAILABLE' ELSE 'AVAILABLE' END`, updatedAt: new Date() }).where(and(eq(listingsTable.id, listing.id), gtAvailable())).returning();
+        if (!updated[0]) throw new StateConflict();
+        await tx.insert(notificationsTable).values({ userId: request.requesterId, title: "Your request was accepted", message: `Your request for ${listing.title} was accepted.`, type: "REQUEST_ACCEPTED" });
+      });
+    } catch (caught) {
+      if (caught instanceof StateConflict) {
+        error(res, 409, "This request can no longer be accepted.");
+        return;
+      }
+      throw caught;
+    }
   } else if (action === "reject") {
     if (request.ownerId !== current.id) {
       error(res, 403, "Only the listing owner can reject this request.");
@@ -404,7 +439,11 @@ async function transitionRequest(req: Request, res: any, action: "accept" | "rej
       error(res, 409, "This request has already been resolved.");
       return;
     }
-    await db.update(requestsTable).set({ status: "REJECTED", updatedAt: new Date() }).where(eq(requestsTable.id, id));
+    const rejected = await db.update(requestsTable).set({ status: "REJECTED", updatedAt: new Date() }).where(and(eq(requestsTable.id, id), eq(requestsTable.ownerId, current.id), eq(requestsTable.status, "PENDING"))).returning();
+    if (!rejected[0]) {
+      error(res, 409, "This request has already been resolved.");
+      return;
+    }
     await db.insert(notificationsTable).values({ userId: request.requesterId, title: "Request update", message: `Your request for ${listing.title} was not accepted.`, type: "REQUEST_REJECTED" });
   } else if (action === "cancel") {
     if (request.requesterId !== current.id) {
@@ -415,18 +454,32 @@ async function transitionRequest(req: Request, res: any, action: "accept" | "rej
       error(res, 409, "Only pending requests can be cancelled.");
       return;
     }
-    await db.update(requestsTable).set({ status: "CANCELLED", updatedAt: new Date() }).where(eq(requestsTable.id, id));
+    const cancelled = await db.update(requestsTable).set({ status: "CANCELLED", updatedAt: new Date() }).where(and(eq(requestsTable.id, id), eq(requestsTable.requesterId, current.id), eq(requestsTable.status, "PENDING"))).returning();
+    if (!cancelled[0]) {
+      error(res, 409, "Only pending requests can be cancelled.");
+      return;
+    }
   } else {
     if (request.ownerId !== current.id && request.requesterId !== current.id) {
       error(res, 403, "Only exchange participants can complete this request.");
       return;
     }
     if (request.status === "ACCEPTED") {
+      let completedNow = false;
       await db.transaction(async (tx) => {
-        await tx.update(requestsTable).set({ status: "COMPLETED", updatedAt: new Date() }).where(eq(requestsTable.id, id));
+        const completed = await tx.update(requestsTable).set({ status: "COMPLETED", updatedAt: new Date() }).where(and(eq(requestsTable.id, id), eq(requestsTable.status, "ACCEPTED"))).returning();
+        if (!completed[0]) return;
+        completedNow = true;
         await tx.insert(reuseTransactionsTable).values({ listingId: request.listingId, requestId: id, ownerId: request.ownerId, requesterId: request.requesterId, listingType: listing.listingType, quantity: 1 });
         await tx.insert(notificationsTable).values({ userId: request.requesterId === current.id ? request.ownerId : request.requesterId, title: "Exchange completed", message: `${listing.title} has been marked as reused.`, type: "EXCHANGE_COMPLETED" });
       });
+      if (!completedNow) {
+        const [latest] = await db.select({ status: requestsTable.status }).from(requestsTable).where(eq(requestsTable.id, id)).limit(1);
+        if (latest?.status !== "COMPLETED") {
+          error(res, 409, "Only accepted requests can be completed.");
+          return;
+        }
+      }
     } else if (request.status !== "COMPLETED") {
       error(res, 409, "Only accepted requests can be completed.");
       return;
