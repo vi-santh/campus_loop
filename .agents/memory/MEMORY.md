@@ -1,1 +1,2 @@
 - [CampusLoop product rules](campusloop-product-rules.md) — availability is reserved on acceptance and impact counts recorded reuse transactions only.
+- [npm workspace migration](npm-workspace-migration.md) — clear pnpm-installed node_modules at root and workspace packages before generating npm lockfiles.

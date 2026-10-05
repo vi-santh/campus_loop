@@ -16,26 +16,30 @@ The API contract lives in `lib/api-spec/openapi.yaml`. React Query hooks and ser
 
 ## Requirements
 
-- Node.js 20+
-- pnpm
-- PostgreSQL (Replit's development database is already provisioned in this project)
+- Node.js 24+ (includes npm)
+- PostgreSQL 14+
 
 ## Local setup
 
-```bash
-pnpm install
-cp .env.example .env
-pnpm --filter @workspace/db run push
-pnpm --filter @workspace/api-server run dev
-```
+Follow [SETUP.md](SETUP.md) for the first-time local setup, including PostgreSQL, environment variables, schema initialization, and starting the web app and API.
 
-In another terminal:
+The repository uses npm workspaces. From the repository root:
 
 ```bash
-pnpm --filter @workspace/campusloop run dev
+npm ci
+npm run typecheck
 ```
 
-Open the web preview. The API is available under `/api`.
+Useful workspace commands:
+
+```bash
+npm run db:push
+npm run dev:api
+npm run dev:web
+npm run api:codegen
+```
+
+`dev:api` and `dev:web` are separate long-running processes and need separate terminals. For local web development, use `LOCAL_API_PROXY=true` as shown in `SETUP.md`; Replit routes `/api` through its shared proxy.
 
 The API seeds categories, demo accounts, listings, requests, and notifications on first startup when the database has no users.
 
@@ -44,9 +48,9 @@ The API seeds categories, demo accounts, listings, requests, and notifications o
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string |
-| `SESSION_SECRET` | Secret used to sign local bearer tokens |
-| `ENFORCE_COLLEGE_DOMAIN` | Reserved for a future campus-domain restriction |
-| `COLLEGE_EMAIL_DOMAIN` | Reserved configurable campus email domain |
+| `SESSION_SECRET` | Secret used to sign bearer tokens; set a unique value outside local demos |
+| `ENFORCE_COLLEGE_DOMAIN` | Set to `true` to restrict registration to the configured campus email domain |
+| `COLLEGE_EMAIL_DOMAIN` | Campus email domain used when domain enforcement is enabled |
 
 Never commit real secrets.
 
@@ -94,10 +98,17 @@ All seeded accounts use the development-only password `CampusLoop123!`.
 ## Checks
 
 ```bash
-pnpm --filter @workspace/api-spec run codegen
-pnpm run typecheck
-pnpm --filter @workspace/api-server run typecheck
-pnpm --filter @workspace/campusloop run typecheck
+npm run api:codegen
+npm run typecheck
+PORT=5173 BASE_PATH=/ npm run build
+```
+
+For Windows PowerShell, set the build variables before running the build:
+
+```powershell
+$env:PORT = "5173"
+$env:BASE_PATH = "/"
+npm run build
 ```
 
 The main request workflow can also be exercised with the seeded accounts using the API endpoints above.

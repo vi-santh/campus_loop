@@ -12,10 +12,10 @@ paths = [ "/" ]
 localPort = 21118
 
 [services.development]
-run = "pnpm --filter @workspace/campusloop run dev"
+run = "npm run dev --workspace=@workspace/campusloop"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/campusloop", "run", "build" ]
+build = [ "npm", "run", "build", "--workspace=@workspace/campusloop" ]
 serve = "static"
 publicDir = "artifacts/campusloop/dist/public"
 

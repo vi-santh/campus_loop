@@ -4,11 +4,11 @@ CampusLoop is a campus-only resource exchange where students and organizations c
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server
-- `pnpm --filter @workspace/campusloop run dev` — run the web app
-- `pnpm --filter @workspace/db run push` — apply the Drizzle schema to the development database
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate typed API hooks and Zod schemas
-- `pnpm run typecheck` — full workspace typecheck
+- `npm run dev:api` — run the API server
+- `npm run dev:web` — run the web app
+- `npm run db:push` — apply the Drizzle schema to the development database
+- `npm run api:codegen` — regenerate typed API hooks and Zod schemas
+- `npm run typecheck` — full workspace typecheck
 
 The managed workflows start the API and web app with the correct ports and preview routing. The development database is provided by Replit through `DATABASE_URL`.
 
@@ -54,6 +54,6 @@ The MVP supports:
 
 ## Gotchas
 
-- If the OpenAPI contract changes, run `pnpm --filter @workspace/api-spec run codegen` before checking the API or web app.
+- If the OpenAPI contract changes, run `npm run api:codegen` before checking the API or web app.
 - `SESSION_SECRET` is used to sign local bearer tokens. Keep it private.
 - Development demo accounts use the same password: `CampusLoop123!`.
